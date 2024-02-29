@@ -55,7 +55,13 @@ fn svn_list() {
 }
 
 fn svn_status() {
-  shellout.command(run: "svn", with: ["st"], in: svn_repo, opt: [])
+  shellout.command(run: "svn", with: ["st -q"], in: svn_repo, opt: [])
+  |> print_svn
+}
+
+fn svn_add(files) {
+  let cmd = ["add", "--non-interactive", ..files]
+  shellout.command(run: "svn", with: cmd, in: svn_repo, opt: [])
   |> print_svn
 }
 
@@ -63,7 +69,8 @@ pub fn main() {
   let rc = case shellout.arguments() {
     ["list"] -> svn_list()
     ["status"] -> svn_status()
-    _ -> 0
+    ["add", ..rest] -> svn_add(rest)
+    _ -> 1
   }
   rc
   |> shellout.exit
