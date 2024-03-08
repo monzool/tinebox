@@ -1,7 +1,10 @@
 import gleam/dict
 import gleam/io
 import gleam/result
+import gleam/list
 import shellout.{type Lookups}
+import simplifile
+import birl
 
 const svn_repo = "/home/jsso/tmp/repo_checkout"
 
@@ -65,11 +68,35 @@ fn svn_add(files) {
   |> print_svn
 }
 
+type MetaData {
+  MetaData(filename: String, mtime: Result(String, simplifile.FileError))
+}
+
+fn get_file_info(files) {
+  io.debug(files)
+
+  list.map(files, fn(file) {
+    let file_info = simplifile.file_info(file)
+    let mtime =
+      file_info
+      |> result.map(with: fn(info) {
+        info.mtime_seconds
+        |> birl.from_unix
+        |> birl.to_iso8601
+      })
+    let meta = MetaData(file, mtime)
+    io.debug(meta)
+    meta
+  })
+  0
+}
+
 pub fn main() {
   let rc = case shellout.arguments() {
     ["list"] -> svn_list()
     ["status"] -> svn_status()
     ["add", ..rest] -> svn_add(rest)
+    ["info", ..rest] -> get_file_info(rest)
     _ -> 1
   }
   rc

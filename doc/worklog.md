@@ -12,19 +12,21 @@ Generated a gleam project with `gleam new tinebox`
 Found some libraries that I perhaps would use
 
 ### Core
-[shellout](https://github.com/tynanbe/shellout) - Cross-platform shell operations
-[argv](https://github.com/lpil/argv) - A cross platform library for getting the command line arguments
-[path](https://github.com/gleam-community/path) - Path parsing and manipulation
-[birl](https://github.com/massivefermion/birl) - Date/time handling
-[gleam-lang/json](https://github.com/gleam-lang/json) - json
+
+- [shellout](https://github.com/tynanbe/shellout) - Cross-platform shell operations
+- [argv](https://github.com/lpil/argv) - A cross platform library for getting the command line arguments
+- [path](https://github.com/gleam-community/path) - Path parsing and manipulation
+- [birl](https://github.com/massivefermion/birl) - Date/time handling
+- [gleam-lang/json](https://github.com/gleam-lang/json) - json
 
 ### Accessories
-[ansi](https://github.com/gleam-community/ansi) - ANSI colors, formatting, and control codes
-[spinner](https://github.com/lpil/spinner) - Animated progress spinners for your console
+- [ansi](https://github.com/gleam-community/ansi) - ANSI colors, formatting, and control codes
+- [spinner](https://github.com/lpil/spinner) - Animated progress spinners for your console
 
 ### Development
-[glimt](https://github.com/JohnBjrk/glimt) - Logging
-[glam](https://github.com/giacomocavalieri/glam) - Pretty print of data structures
+
+- [glimt](https://github.com/JohnBjrk/glimt) - Logging
+- [glam](https://github.com/giacomocavalieri/glam) - Pretty print of data structures
 
 
 
@@ -187,3 +189,82 @@ Permissions User Group Size      Date Modified              Name
 ## svn add
 
 Should probably just simply pass to `svn add` every file added, that resides within the repo
+
+
+# 2024-03-08
+
+## Iterate a file list
+
+How do I get the first item from a list and unwrap it so I get the actual value?
+
+First tried
+
+```
+let file1 = result.unwrap(list.first(files), "")
+```
+
+Not awesome. The default value makes no sense. I know that I can pattern match, but as there is not early exit, how do I structure this?
+
+Oh. Pattern matching is going to be weird also
+
+```
+case list.first(files) {
+  [first, ..rest] -> first
+  _ -> "what to do here?"
+}
+```
+
+Lets just iterate'em all. Then I can use `map`.
+Using maps works, excepts that it is not suitable if I want to stop at first error. I think I should just stop first time I get an error where I can't collect the meta data. Failure would probably not be a one off, but instead permission or unmount issue.
+Searching a bit, found that javascript use `Some` or `find` for this. Gleam list type has a `find` function
+
+
+## Getting file information
+
+The `FileInfo` type added in simplifile-1.5.0 is pretty nice.
+
+
+```gleam
+let file_info = simplifile.file_info(file)
+```
+This give me a result wrapped 'FileInfo`.
+For now I just store it in a meta record
+
+```gleam
+type MetaData {
+  MetaData(filename: String, mtime: Result(String, simplifile.FileError))
+]
+```
+
+
+## Gleam formatting bug
+
+Found a bug in the formatter
+
+```gleam
+let mtime =
+  file_info
+  |> result.map(with: fn(info) {
+    info.mtime_seconds
+    |> birl.from_unix
+    |> birl.to_iso8601
+    // |> io.debug
+    // #(file, info.mtime_seconds)
+  })
+```
+
+After saving, the formatter changes this by moving the commented lines
+
+```gleam
+let mtime =
+  file_info
+  |> result.map(with: fn(info) {
+    info.mtime_seconds
+    |> birl.from_unix
+    |> birl.to_iso8601
+  })
+
+// |> io.debug
+// #(file, info.mtime_seconds)
+```
+
