@@ -72,18 +72,23 @@ type MetaData {
   MetaData(filename: String, mtime: Result(String, simplifile.FileError))
 }
 
+fn get_file_mtime(file) {
+  let file_info = simplifile.file_info(file)
+  let mtime =
+    file_info
+    |> result.map(with: fn(info) {
+      info.mtime_seconds
+      |> birl.from_unix
+      |> birl.to_iso8601
+    })
+  mtime
+}
+
 fn get_file_info(files) {
   io.debug(files)
 
   list.map(files, fn(file) {
-    let file_info = simplifile.file_info(file)
-    let mtime =
-      file_info
-      |> result.map(with: fn(info) {
-        info.mtime_seconds
-        |> birl.from_unix
-        |> birl.to_iso8601
-      })
+    let mtime = get_file_mtime(file)
     let meta = MetaData(file, mtime)
     io.debug(meta)
     meta
