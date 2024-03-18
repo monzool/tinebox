@@ -74,26 +74,37 @@ type MetaData {
 
 fn get_file_mtime(file) {
   let file_info = simplifile.file_info(file)
-  let mtime =
-    file_info
-    |> result.map(with: fn(info) {
-      info.mtime_seconds
+  file_info
+  |> result.map(fn(file_info) {
+    let mtime =
+      file_info.mtime_seconds
       |> birl.from_unix
       |> birl.to_iso8601
-    })
-  mtime
+    mtime
+  })
+  |> result.map_error(fn(error) { error })
 }
 
 fn get_file_info(files) {
   io.debug(files)
 
-  list.map(files, fn(file) {
-    let mtime = get_file_mtime(file)
-    let meta = MetaData(file, mtime)
-    io.debug(meta)
-    meta
-  })
-  0
+  let metadata =
+    files
+    |> list.fold_until(Ok([]), fn(acc, i) {
+      let mtime = get_file_mtime(i)
+
+      case mtime {
+        Ok(mtime) ->
+          list.Continue(
+            result.map(acc, fn(values) {
+              list.append(values, [MetaData(i, Ok(mtime))])
+            }),
+          )
+        Error(file_error) -> list.Stop(Error([MetaData(i, Error(file_error))]))
+      }
+    })
+
+  metadata
 }
 
 pub fn main() {
@@ -101,7 +112,13 @@ pub fn main() {
     ["list"] -> svn_list()
     ["status"] -> svn_status()
     ["add", ..rest] -> svn_add(rest)
-    ["info", ..rest] -> get_file_info(rest)
+    ["info", ..rest] ->
+      fn() {
+        let info = get_file_info(rest)
+        io.debug("info: ")
+        io.debug(info)
+        0
+      }()
     _ -> 1
   }
   rc

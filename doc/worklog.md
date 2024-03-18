@@ -268,3 +268,58 @@ let mtime =
 // #(file, info.mtime_seconds)
 ```
 
+
+# 2024-03-13
+
+## Try out `fold_until`
+
+So how to break from a map operation if error? Best fit I could find was `fold_until`. That can return a `list.Continue` in good case, or `list.Stop` in error cases
+Looks like the return type is the same for both cases. That won't work directly, as I then can't identify success from error. Have to use a `result` type I figure
+
+So `fold` functions need a starting seed, Guess I can use an empty list for starting.
+First basic tryout
+
+```gleam
+fn get_file_info(files) {
+  let metadata =
+    files
+    |> list.fold_until(Ok([]), fn(acc, i) {
+      let meta = MetaData(i, "dummy mtime")
+      let res = result.map(acc, fn(values) { list.append(values, [meta]) })
+
+      list.Continue(res)
+    })
+}
+```
+
+Result:
+>Ok([MetaData("first_file.txt", "dummy mtime"), MetaData("second_file.txt", "dummy mtime")])
+
+
+## Using `fold_until`
+
+Okay got a solution. There are some issues...maybe
+
+```gleam
+fn get_file_info(files) {
+  let metadata =
+    files
+    |> list.fold_until(Ok([]), fn(acc, i) {
+      let mtime = get_file_mtime(i)
+      case mtime {
+        Ok(mtime) ->
+          list.Continue(
+            result.map(acc, fn(values) {
+              list.append(values, [MetaData(i, mtime)])
+            }),
+          )
+        Error(file_error) -> list.Stop(Error(file_error))
+      }
+    })
+}
+```
+
+The `acc` is a `result` type, so I need to unwrap it, to append to the boxed list. Here I only use `map` and ignores any errors. As a human I know that this will never error, but the code could look like an only semi-handled situation?
+
+If feeding a list of valid files, it will return a `Ok` result of list. In case of an invalid file, it stops on first error
+
