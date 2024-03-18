@@ -323,3 +323,37 @@ The `acc` is a `result` type, so I need to unwrap it, to append to the boxed lis
 
 If feeding a list of valid files, it will return a `Ok` result of list. In case of an invalid file, it stops on first error
 
+
+# 2024-03-18
+
+Settled on the following file instance type
+
+```gleam
+type MetaData {
+  MetaData(filename: String, mtime: Result(String, simplifile.FileError))
+}
+```
+
+The resulting type from a file traversal will be
+
+```gleam
+  Result(MetaData(filename: String, mtime: Result(String, simplifile.FileError)))
+```
+
+The outer `Result` will inform:
+- Ok 🢡 all file operations succeded
+- Error 🢡 file of first error
+
+More meta data are to be collected, but for now the following is collected as the `mtime` member:
+- Ok 🢡 a iso8601 timestamp (`Ok("2024-02-27T17:33:31.000Z")`)
+- Error 🢡 a simplify file error (`Error(Enoent)`)
+
+A success result might be like this
+
+`Ok([MetaData("first_file.txt", Ok("2024-02-27T17:45:53.000Z")), MetaData("second_file.txt", Ok("2024-02-27T17:33:31.000Z"))])`
+
+while an error could be like this
+
+`Error([MetaData("/non/existing/file", Error(Enoent))])`
+
+Both success and failure are list results. In the error case, this might not be needed now, as it stops on first error, but it simplifies the generating code. And if wanting to parallelize it might be easier for collecting errors, and then just presenting the first item 🤷‍♀️
