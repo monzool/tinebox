@@ -357,3 +357,143 @@ while an error could be like this
 `Error([MetaData("/non/existing/file", Error(Enoent))])`
 
 Both success and failure are list results. In the error case, this might not be needed now, as it stops on first error, but it simplifies the generating code. And if wanting to parallelize it might be easier for collecting errors, and then just presenting the first item 🤷‍♀️
+
+
+# 2024-03-24
+
+Cannot get gleam shellout working with pipe operators
+
+```gleam
+shellout.command(run: "svn", with: ["st", "-q", "| wc"], in: svn_repo, opt: [])
+|> print_svn
+```
+This simple command prints nothing?
+
+This is even worse
+
+```gleam
+shellout.command(run: "ls", with: ["|", "wc"], in: svn_repo, opt: [])
+|> print_svn
+```
+
+>/usr/bin/ls: cannot access '|': No such file or directory \
+/usr/bin/ls: cannot access 'wc': No such file or directory
+
+
+Found an [example](https://github.com/tynanbe/shellout/issues/4) on the shellout issue site. That example works.
+
+A little modified to capture stdout and print the result in gleam..
+
+```gleam
+shellout.command(run: "sh", with: ["-euc", "
+  echo '" <> "Hello world" <> "' \\
+    | cat
+  "], in: ".", opt: [])
+|> print_svn
+```
+
+Hmm, okay using "sh" as command seems to work, but I would have expected, that I wouldn't need to run "advanced" command by passing them to a shell
+
+```gleam
+shellout.command(run: "sh", with: ["-euc", "ls | wc"], in: svn_repo, opt: [])
+|> print_svn
+```
+
+## Handling bad commands
+
+My understanding of `result.try` is that it should only run the `fn` in case of successful result. If I run a bogus command (`svn xyz`) with shellout, I still get a `fn` call?
+
+```gleam
+result.try(
+  shellout.command(
+      run: "sh",
+      with: ["-euc", "svn xyz -q | sed -E 's/^[[:space:]]*[AM][[:space:]]+//'"],
+  ),
+  fn(data) {
+    // data is an error message
+  },
+)
+```
+
+Either I misunderstood `result.try` or shellout is giving ok back on error exit?
+
+Changed to use `result.map` instead, with same result. 
+Found that this gives me an `Error` result from shellout
+
+```gleam
+shellout.command(
+    run: "sh",
+    with: ["-euc", "false"],
+),
+```
+
+Then its probably the pipe!
+
+Yes. This gives ok
+
+```gleam
+shellout.command(
+    run: "sh",
+    with: ["-euc", "false | echo"],
+),
+```
+
+But I cant get `-o pipefail` to work with shellout 🤷‍♀️
+
+Found a solution, but had to change to `bash`
+
+```gleam
+shellout.command(
+    run: "bash",
+    with: ["-euc", "-o", "pipefail", "false | echo"],
+),
+```
+
+Think the `with` option is a bit confusing on what it accepts, or how, it accepts its arguments 🤔
+Not happy with the `bash` usage. It might not be installed, or linked to `sh` and then break stuff
+
+#todo/bash
+
+⛳ Anyway shellout now gives `Error` on failure
+
+
+## `result.try` vs `result.map`
+
+The above made me wonder when to use `result.try` and when to prefer `result.map`...
+
+The two examples below gives the same end result. Ok situations convert the data. Error situations only returns the error.
+
+```gleam
+result.try(
+  shellout.command(
+  ),
+  fn(raw) {
+    items
+  },
+)
+```
+
+```gleam
+shellout.command(
+)
+|> result.map(fn(raw) {
+  items
+})
+```
+
+Subjectively the `map` may appear simpler, but maybe these samples are two small to make a real difference
+
+
+### Directory timestamp strategy
+
+For now I have not distinguished between added or modified, but I think for directories I might need to handle this different
+
+- newly added directory 🢡 store created timestamp
+- files added to directory 🢡 update timestamp
+
+I foresee the might be a matter of taste, and should probably be an option. If f.ex adding a long lost file to an existing collection of files, the directory should still represent the original timestamp. If adding a newly created file, it might make sense to make the directory reflect a change in content.
+
+For now, creation timestamp will be the rule for directories
+
+#todo/directories/timestamp
+

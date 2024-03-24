@@ -2,6 +2,7 @@ import gleam/dict
 import gleam/io
 import gleam/result
 import gleam/list
+import gleam/string
 import shellout.{type Lookups}
 import simplifile
 import birl
@@ -68,6 +69,34 @@ fn svn_add(files) {
   |> print_svn
 }
 
+fn svn_list_updated() {
+  let f =
+    shellout.command(
+      run: "bash",
+      with: [
+        "-euc", "-o", "pipefail",
+        "svn st -q | sed -E 's/^[[:space:]]*[AM][[:space:]]+//'",
+      ],
+      in: svn_repo,
+      opt: [],
+    )
+    |> result.map(fn(raw) {
+      let lines = string.split(raw, on: "\n")
+      let items = list.filter(lines, fn(item) { !string.is_empty(item) })
+      items
+    })
+  f
+}
+
+fn list_updated() {
+  svn_list_updated()
+  |> io.debug
+
+  // TODO: split out new directories, so they can be added with metadata also
+
+  0
+}
+
 type MetaData {
   MetaData(filename: String, mtime: Result(String, simplifile.FileError))
 }
@@ -119,6 +148,7 @@ pub fn main() {
         io.debug(info)
         0
       }()
+    ["changed"] -> list_updated()
     _ -> 1
   }
   rc
