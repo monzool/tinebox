@@ -1,98 +1,17 @@
-import gleam/dict
 import gleam/io
 import gleam/result
 import gleam/list
-import gleam/string
-import shellout.{type Lookups}
+import shellout
 import simplifile
 import birl
-
-const svn_repo = "/home/jsso/tmp/repo_checkout"
-
-fn get_style() {
-  let style =
-    shellout.display(["bold", "normal"])
-    |> dict.merge(from: shellout.color(["pink"]))
-  style
-}
-
-fn get_style_error() {
-  let error_style =
-    shellout.display(["bold", "italic"])
-    |> dict.merge(from: shellout.color(["red"]))
-    |> dict.merge(from: shellout.background(["brightblack"]))
-  error_style
-}
-
-pub const lookups: Lookups = [
-  #(
-    ["color", "background"],
-    [
-      #("buttercup", ["252", "226", "174"]),
-      #("mint", ["182", "255", "234"]),
-      #("pink", ["255", "175", "243"]),
-    ],
-  ),
-]
-
-fn print_svn(svn_result: Result(String, #(Int, String))) {
-  svn_result
-  |> result.map(with: fn(output) {
-    output
-    |> shellout.style(with: get_style(), custom: lookups)
-    |> io.print
-    0
-  })
-  |> result.map_error(with: fn(detail) {
-    let #(status, message) = detail
-    message
-    |> shellout.style(with: get_style_error(), custom: lookups)
-    |> io.print_error
-    status
-  })
-  |> result.unwrap_both
-}
-
-fn svn_list() {
-  shellout.command(run: "svn", with: ["ls"], in: svn_repo, opt: [])
-  |> print_svn
-}
-
-fn svn_status() {
-  shellout.command(run: "svn", with: ["st -q"], in: svn_repo, opt: [])
-  |> print_svn
-}
-
-fn svn_add(files) {
-  let cmd = ["add", "--non-interactive", ..files]
-  shellout.command(run: "svn", with: cmd, in: svn_repo, opt: [])
-  |> print_svn
-}
-
-fn svn_list_updated() {
-  let f =
-    shellout.command(
-      run: "bash",
-      with: [
-        "-euc", "-o", "pipefail",
-        "svn st -q | sed -E 's/^[[:space:]]*[AM][[:space:]]+//'",
-      ],
-      in: svn_repo,
-      opt: [],
-    )
-    |> result.map(fn(raw) {
-      let lines = string.split(raw, on: "\n")
-      let items = list.filter(lines, fn(item) { !string.is_empty(item) })
-      items
-    })
-  f
-}
+import tinebox/svn
 
 fn list_updated() {
-  svn_list_updated()
+  svn.svn_list_updated()
   |> io.debug
 
   // TODO: split out new directories, so they can be added with metadata also
+  // splitting: https://hexdocs.pm/filepath/filepath.html#split
 
   0
 }
@@ -138,9 +57,9 @@ fn get_file_info(files) {
 
 pub fn main() {
   let rc = case shellout.arguments() {
-    ["list"] -> svn_list()
-    ["status"] -> svn_status()
-    ["add", ..rest] -> svn_add(rest)
+    ["list"] -> svn.svn_list()
+    ["status"] -> svn.svn_status()
+    ["add", ..rest] -> svn.svn_add(rest)
     ["info", ..rest] ->
       fn() {
         let info = get_file_info(rest)

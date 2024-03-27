@@ -497,3 +497,9 @@ For now, creation timestamp will be the rule for directories
 
 #todo/directories/timestamp
 
+
+# 2024-03-27
+
+## Restructure
+
+Moved subversion and printing related into their own modules. Modules are real easy. Its just files (similar to python) 🏆
