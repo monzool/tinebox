@@ -6,16 +6,6 @@ import simplifile
 import birl
 import tinebox/svn
 
-fn list_updated() {
-  svn.svn_list_updated()
-  |> io.debug
-
-  // TODO: split out new directories, so they can be added with metadata also
-  // splitting: https://hexdocs.pm/filepath/filepath.html#split
-
-  0
-}
-
 type MetaData {
   MetaData(filename: String, mtime: Result(String, simplifile.FileError))
 }
@@ -55,19 +45,52 @@ fn get_file_info(files) {
   metadata
 }
 
+fn vcs_list(rest) {
+  case rest {
+    [repo] -> svn.svn_list(repo)
+    _ -> 1
+  }
+}
+
+fn vcs_status(rest) {
+  case rest {
+    [repo] -> svn.svn_status(repo)
+    _ -> 1
+  }
+}
+
+fn vcs_add(rest) {
+  case rest {
+    [repo, ..files] -> svn.svn_add(repo, files)
+    _ -> 1
+  }
+}
+
+fn vcs_list_updated(rest) {
+  case rest {
+    [repo] -> {
+      svn.svn_list_updated(repo)
+      |> io.debug
+      0
+    }
+    _ -> 1
+  }
+  // TODO: split out new directories, so they can be added with metadata also
+  // splitting: https://hexdocs.pm/filepath/filepath.html#split
+}
+
 pub fn main() {
   let rc = case shellout.arguments() {
-    ["list"] -> svn.svn_list()
-    ["status"] -> svn.svn_status()
-    ["add", ..rest] -> svn.svn_add(rest)
-    ["info", ..rest] ->
-      fn() {
-        let info = get_file_info(rest)
-        io.debug("info: ")
-        io.debug(info)
-        0
-      }()
-    ["changed"] -> list_updated()
+    ["list", ..rest] -> vcs_list(rest)
+    ["status", ..rest] -> vcs_status(rest)
+    ["add", ..rest] -> vcs_add(rest)
+    ["info", ..rest] -> {
+      let info = get_file_info(rest)
+      io.debug("info: ")
+      io.debug(info)
+      0
+    }
+    ["changed", ..rest] -> vcs_list_updated(rest)
     _ -> 1
   }
   rc

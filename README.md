@@ -10,7 +10,7 @@ Simple wrapper for using subversion as a backup system
 ```sh
 gleam add tinebox
 ```
-```gleam
+```elm
 import tinebox
 
 pub fn main() {

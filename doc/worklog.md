@@ -39,7 +39,7 @@ Huh? Apparently there is no built-in file support in gleam 🤔
 
 Google didn't find much, but a few hits pointed to https://hexdocs.pm/gleam_erlang/. However, that repo didn't seem to have any file handling. After some digging in the history, it was clear that it **had** had some file handling features, but those had been [deprecated](https://github.com/gleam-lang/erlang/commit/9d72bd00caf5ec80ffbafb2a75c6d29b1d1477c5)
 
-```gleam
+```elm
 @deprecated("Use the simplifile package instead")
 @external(erlang, "gleam_erlang_ffi", "file_info")
 ```
@@ -224,13 +224,13 @@ Searching a bit, found that javascript use `Some` or `find` for this. Gleam list
 The `FileInfo` type added in simplifile-1.5.0 is pretty nice.
 
 
-```gleam
+```elm
 let file_info = simplifile.file_info(file)
 ```
 This give me a result wrapped 'FileInfo`.
 For now I just store it in a meta record
 
-```gleam
+```elm
 type MetaData {
   MetaData(filename: String, mtime: Result(String, simplifile.FileError))
 ]
@@ -241,7 +241,7 @@ type MetaData {
 
 Found a bug in the formatter
 
-```gleam
+```elm
 let mtime =
   file_info
   |> result.map(with: fn(info) {
@@ -255,7 +255,7 @@ let mtime =
 
 After saving, the formatter changes this by moving the commented lines
 
-```gleam
+```elm
 let mtime =
   file_info
   |> result.map(with: fn(info) {
@@ -279,7 +279,7 @@ Looks like the return type is the same for both cases. That won't work directly,
 So `fold` functions need a starting seed, Guess I can use an empty list for starting.
 First basic tryout
 
-```gleam
+```elm
 fn get_file_info(files) {
   let metadata =
     files
@@ -300,7 +300,7 @@ Result:
 
 Okay got a solution. There are some issues...maybe
 
-```gleam
+```elm
 fn get_file_info(files) {
   let metadata =
     files
@@ -328,7 +328,7 @@ If feeding a list of valid files, it will return a `Ok` result of list. In case 
 
 Settled on the following file instance type
 
-```gleam
+```elm
 type MetaData {
   MetaData(filename: String, mtime: Result(String, simplifile.FileError))
 }
@@ -336,7 +336,7 @@ type MetaData {
 
 The resulting type from a file traversal will be
 
-```gleam
+```elm
   Result(MetaData(filename: String, mtime: Result(String, simplifile.FileError)))
 ```
 
@@ -363,7 +363,7 @@ Both success and failure are list results. In the error case, this might not be 
 
 Cannot get gleam shellout working with pipe operators
 
-```gleam
+```elm
 shellout.command(run: "svn", with: ["st", "-q", "| wc"], in: svn_repo, opt: [])
 |> print_svn
 ```
@@ -371,7 +371,7 @@ This simple command prints nothing?
 
 This is even worse
 
-```gleam
+```elm
 shellout.command(run: "ls", with: ["|", "wc"], in: svn_repo, opt: [])
 |> print_svn
 ```
@@ -384,7 +384,7 @@ Found an [example](https://github.com/tynanbe/shellout/issues/4) on the shellout
 
 A little modified to capture stdout and print the result in gleam..
 
-```gleam
+```elm
 shellout.command(run: "sh", with: ["-euc", "
   echo '" <> "Hello world" <> "' \\
     | cat
@@ -394,7 +394,7 @@ shellout.command(run: "sh", with: ["-euc", "
 
 Hmm, okay using "sh" as command seems to work, but I would have expected, that I wouldn't need to run "advanced" command by passing them to a shell
 
-```gleam
+```elm
 shellout.command(run: "sh", with: ["-euc", "ls | wc"], in: svn_repo, opt: [])
 |> print_svn
 ```
@@ -403,7 +403,7 @@ shellout.command(run: "sh", with: ["-euc", "ls | wc"], in: svn_repo, opt: [])
 
 My understanding of `result.try` is that it should only run the `fn` in case of successful result. If I run a bogus command (`svn xyz`) with shellout, I still get a `fn` call?
 
-```gleam
+```elm
 result.try(
   shellout.command(
       run: "sh",
@@ -420,7 +420,7 @@ Either I misunderstood `result.try` or shellout is giving ok back on error exit?
 Changed to use `result.map` instead, with same result. 
 Found that this gives me an `Error` result from shellout
 
-```gleam
+```elm
 shellout.command(
     run: "sh",
     with: ["-euc", "false"],
@@ -431,7 +431,7 @@ Then its probably the pipe!
 
 Yes. This gives ok
 
-```gleam
+```elm
 shellout.command(
     run: "sh",
     with: ["-euc", "false | echo"],
@@ -442,7 +442,7 @@ But I cant get `-o pipefail` to work with shellout 🤷‍♀️
 
 Found a solution, but had to change to `bash`
 
-```gleam
+```elm
 shellout.command(
     run: "bash",
     with: ["-euc", "-o", "pipefail", "false | echo"],
@@ -463,7 +463,7 @@ The above made me wonder when to use `result.try` and when to prefer `result.map
 
 The two examples below gives the same end result. Ok situations convert the data. Error situations only returns the error.
 
-```gleam
+```elm
 result.try(
   shellout.command(
   ),
@@ -473,7 +473,7 @@ result.try(
 )
 ```
 
-```gleam
+```elm
 shellout.command(
 )
 |> result.map(fn(raw) {
@@ -503,3 +503,107 @@ For now, creation timestamp will be the rule for directories
 ## Restructure
 
 Moved subversion and printing related into their own modules. Modules are real easy. Its just files (similar to python) 🏆
+
+
+# 2024-03-28
+
+## Repository argument
+
+The repository path was hardcoded up until now. It is now expected to be first argument to each function.
+
+## gleam
+
+#gleam/language
+
+Learned that handling a multiline expression in a case match, does not require to put it in a function. Don't know why I assumed that the function was needed. Oh well
+
+```diff
+case x {
+-  x -> fn() {
+-  }()
++  x -> {
++  }
+}
+```
+
+---
+
+#gleam/tooling
+
+After splitting the source into multiple modules, I cannot get "go to implementation" to work in vscode. Little annoying, but the project is small so not critical
+
+
+## Libraries
+
+### json
+
+#gleam/library/json
+
+Found a library [gserde](https://hexdocs.pm/gserde/) that can generate code to convert gleam types to json types
+
+### File handling
+
+#gleam/library/file
+
+There appears to be two libraries for file handling
+
+- [gleam_community_path](https://hex.pm/packages/gleam_community_path)
+- [filepath](https://hex.pm/packages/filepath)
+
+Not sure which to use, but *gleam_community_path* seems to operate on a [`Path`](https://hexdocs.pm/gleam_community_path/gleam_community/path.html#Path) type
+
+The [expand](https://hexdocs.pm/filepath/filepath.html#expand) function looks useful
+
+```elm
+expand("/usr/local/../bin")
+// -> Ok("/usr/bin")
+```
+
+## Adding directories
+
+If adding a directory tree to tinebox, I want all levels of directories to have meta data stored.
+
+Adding `dir` is trivial, but if having sub-dirs `dir1/dir2/dir3`, then the following steps are needed:
+
+- Split the path `dir1/dir2/dir3` 🢡 `dir1`, `dir2`, `dir3`
+- Check if directory is not already in tinebox
+- Collect metadata
+- Add as a new item to the file/directory list
+
+Do I need to care about that subversion can add empty directories?
+
+- `dir1/dir2`
+- `dir3/file1`
+
+It might be that it actually doesn't matter if its a directory or a file. If it splits, then its known to have an item that needs to be handled.
+
+There is another case that needs to be handled in this case
+
+```sh
+❱ svn st
+A       dir1/dir1_file1.txt
+A       dir1/dir1_file2.txt
+```
+
+It does not make sense to handle the same directory (`dir1`) multiple times, so some filtering is needed before adding to the total list.
+
+Right now items are just stored in a list. Storing items in a [dictionary](https://hexdocs.pm/gleam_stdlib/gleam/dict.html), would make it really simple to check if a directory has already been added
+
+```elm
+dict.insert(`dir1`, metadata_dir1)
+dict.insert(`dir1/dir2`, metadata_dir2)
+dict.insert(`dir1/dir2/dir3`, metadata_dir3)
+dict.insert(`dir1/dir2/dir3/file123`, metadata_file123)
+```
+
+Alternatively a local list could maintain handled directories
+
+
+```elm
+list.prepend(items, #(`dir1`, metadata_dir1))
+list.prepend(items, #(`dir1/dir2`, metadata_dir2))
+list.prepend(items, #(`dir1/dir2/dir3`, metadata_dir3))
+list.prepend(items, #(`dir1/dir2/dir3/file123`, metadata_files123))
+```
+
+This is highly inefficient, but not sure the normal use-case requires a lot of files. Initial adding could though

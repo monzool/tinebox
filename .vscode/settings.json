@@ -1,0 +1,21 @@
+{
+    "editor.minimap.enabled": true,
+    "editor.wrappingIndent": "indent",
+    "editor.overviewRulerBorder": false,
+    "[markdown]": {
+        "editor.quickSuggestions": {
+            "comments": "on",
+            "strings": "on",
+            "other": "on"
+        }
+    },
+    "markdown.preview.breaks": true,
+    "cSpell.customDictionaries": {
+        "custom-dictionary-workspace": {
+            "name": "tinebox-dictionary",
+            "path": "${workspaceFolder}/.vscode/tinebox-dictionary.txt",
+            "addWords": true,
+            "scope": "workspace"
+        }
+    }
+}
